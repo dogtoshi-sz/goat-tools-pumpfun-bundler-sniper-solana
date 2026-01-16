@@ -77,7 +77,8 @@ export const distributeSol = async (connection: Connection, mainKp: Keypair, dis
       console.log("Main wallet balance is not enough")
       return []
     }
-    let solAmount = Math.floor((SWAP_AMOUNT + 0.01) * 10 ** 9)
+    // Add 0.02 buffer for SDK fee reservation + 0.01 for transaction fees = 0.03 total buffer
+    let solAmount = Math.floor((SWAP_AMOUNT + 0.03) * 10 ** 9)
 
     for (let i = 0; i < distritbutionNum; i++) {
 
@@ -415,4 +416,102 @@ export const makeBuyIx = async (kp: Keypair, buyAmount: number, index: number, c
   );
 
   return buyIx as TransactionInstruction[]
+}
+
+// Helper function to get the actual creator from the bonding curve account
+export const getTokenCreator = async (mintAddress: PublicKey): Promise<PublicKey | null> => {
+  try {
+    const bondingCurve = await sdk.getBondingCurvePDA(mintAddress)
+    const bondingCurveAccount = await connection.getAccountInfo(bondingCurve)
+    
+    if (!bondingCurveAccount) {
+      console.log("Bonding curve account not found - token may have migrated to Raydium")
+      return null
+    }
+    
+    // Try to use SDK's program to decode if available
+    try {
+      // @ts-ignore - SDK program might have account types
+      if (sdk.program && sdk.program.account && sdk.program.account.BondingCurve) {
+        const decoded = await sdk.program.account.BondingCurve.fetch(bondingCurve)
+        // @ts-ignore
+        if (decoded && decoded.creator) {
+          return decoded.creator
+        }
+      }
+    } catch (decodeError) {
+      // Fall back to manual decoding
+    }
+    
+    // Manual decoding: Pump.fun bonding curve structure typically has creator at offset 8 (after 8-byte discriminator)
+    // This is a best-guess based on common Anchor account structures
+    if (bondingCurveAccount.data.length >= 40) {
+      const creatorBytes = bondingCurveAccount.data.slice(8, 40)
+      try {
+        return new PublicKey(creatorBytes)
+      } catch (e) {
+        // Invalid public key bytes
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.log("Error getting token creator:", error)
+    return null
+  }
+}
+
+export const makeSellTx = async (kp: Keypair, tokenAmount: bigint, mintAddress: PublicKey, creator: PublicKey) => {
+  try {
+    // Try to get the actual creator from the bonding curve account
+    const actualCreator = await getTokenCreator(mintAddress)
+    
+    // The fee recipient for pump.fun sells - try default platform fee recipient first
+    const DEFAULT_FEE_RECIPIENT = new PublicKey("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM")
+    
+    // Use default platform fee recipient (this is what pump.fun uses for all trades)
+    // The creator is not the fee recipient - fees go to the platform
+    let feeRecipient = DEFAULT_FEE_RECIPIENT
+    
+    if (actualCreator) {
+      console.log(`Token creator from bonding curve: ${actualCreator.toBase58()}`)
+      if (!actualCreator.equals(creator)) {
+        console.log(`(Different from provided wallet: ${creator.toBase58()})`)
+      }
+      console.log(`Using fee recipient: ${feeRecipient.toBase58()}`)
+    } else {
+      console.log(`Using default platform fee recipient: ${feeRecipient.toBase58()}`)
+    }
+    
+    // getSellInstructions requires: seller, mint, feeRecipient, amount, minSolOutput
+    // minSolOutput is the minimum SOL you're willing to accept (0 = accept any amount)
+    const minSolOutput = BigInt(0) // Accept any amount
+    let sellTx = await sdk.getSellInstructions(
+      kp.publicKey,
+      mintAddress,
+      feeRecipient,
+      tokenAmount,
+      minSolOutput
+    );
+    
+    // The SDK returns a Transaction - update blockhash and sign it
+    const latestBlockhash = await connection.getLatestBlockhash()
+    sellTx.recentBlockhash = latestBlockhash.blockhash
+    sellTx.feePayer = kp.publicKey
+    sellTx.sign(kp)
+    
+    // Convert Transaction to VersionedTransaction properly
+    const versionedTx = new VersionedTransaction(
+      new TransactionMessage({
+        payerKey: kp.publicKey,
+        recentBlockhash: latestBlockhash.blockhash,
+        instructions: sellTx.instructions,
+      }).compileToV0Message()
+    )
+    versionedTx.sign([kp])
+    return versionedTx
+  } catch (error) {
+    console.log("Error creating sell transaction:", error)
+    return null
+  }
 }

