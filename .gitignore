@@ -1,0 +1,33 @@
+# Environment variables
+.env
+*.env
+
+# Private keys and wallet data
+keys/
+*.json
+!package.json
+!package-lock.json
+!tsconfig*.json
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo

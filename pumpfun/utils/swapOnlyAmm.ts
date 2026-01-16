@@ -10,7 +10,6 @@ const SLIPPAGE = 50
 
 export const getBuyTxWithJupiter = async (wallet: Keypair, baseMint: PublicKey, amount: number) => {
   try {
-    const publicKey = btoa(wallet.secretKey.toString())
     const quoteResponse = await (
       await fetch(
         `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${baseMint.toBase58()}&amount=${amount}&slippageBps=${SLIPPAGE}`
@@ -50,7 +49,6 @@ export const getBuyTxWithJupiter = async (wallet: Keypair, baseMint: PublicKey, 
 
 export const getSellTxWithJupiter = async (wallet: Keypair, baseMint: PublicKey, amount: string) => {
   try {
-    const publicKey = btoa(wallet.secretKey.toString())
     const quoteResponse = await (
       await fetch(
         `https://quote-api.jup.ag/v6/quote?inputMint=${baseMint.toBase58()}&outputMint=So11111111111111111111111111111111111111112&amount=${amount}&slippageBps=${SLIPPAGE}`

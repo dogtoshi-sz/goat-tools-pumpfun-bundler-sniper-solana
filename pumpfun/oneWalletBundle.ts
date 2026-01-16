@@ -22,6 +22,10 @@ const mainKp = Keypair.fromSecretKey(base58.decode(PRIVATE_KEY))
 
 const smallNumWalletBundle = async () => {
   try {
+    if (!BUYER_WALLET) {
+      console.log("BUYER_WALLET is required for single wallet mode. Please set it in your .env file.")
+      process.exit(1)
+    }
     const buyerKp = Keypair.fromSecretKey(base58.decode(BUYER_WALLET))
     const tokenCreationIxs = await createTokenTx(mainKp, mintKp)
     const latestBlockhash = await connection.getLatestBlockhash()

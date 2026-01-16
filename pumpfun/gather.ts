@@ -19,7 +19,9 @@ const mainKp = Keypair.fromSecretKey(base58.decode(mainKpStr))
 const main = async () => {
   const walletsData = readJson()
   let wallets = walletsData.map((kp) => Keypair.fromSecretKey(base58.decode(kp)))
-  wallets.push(Keypair.fromSecretKey(base58.decode(BUYER_WALLET)))
+  if (BUYER_WALLET) {
+    wallets.push(Keypair.fromSecretKey(base58.decode(BUYER_WALLET)))
+  }
 
   wallets.map(async (kp, i) => {
     try {

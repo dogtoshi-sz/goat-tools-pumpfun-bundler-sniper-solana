@@ -31,5 +31,6 @@ export const SIMULATE_ONLY = retrieveEnvVariable('SIMULATE_ONLY') == "true"
 export const global_mint = new PublicKey("p89evAyzjd9fphjJx7G3RFA48sbZdpGEppRcfRNpump")
 export const PUMP_PROGRAM = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
 
-export const BUYER_WALLET = retrieveEnvVariable('BUYER_WALLET')
-export const BUYER_AMOUNT = Number(retrieveEnvVariable('BUYER_AMOUNT'))
+// Optional - only needed for single wallet mode (npm run single) and gather script
+export const BUYER_WALLET = process.env.BUYER_WALLET || ''
+export const BUYER_AMOUNT = Number(process.env.BUYER_AMOUNT || '0')
